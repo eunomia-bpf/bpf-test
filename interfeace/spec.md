@@ -24,7 +24,7 @@ Key highlights:
 - Let `T` be a set of **Types**, each with associated constraints and properties.
 - Let `C` be a set of **Capabilities**.
 - Let `R` be a set of **Roles**.
-- Let `A` be a set of **Attributes** applicable to roles, capabilities, and extensions. Can be used to check the compatibility or applicability of some host functions to a certain extension.
+- Let `A` be a set of **Attributes** applicable to roles, capabilities, and extensions. Can be used to check the compatibility or applicability between Capabilities and Roles.
 
 We introduce a specification language that can be represented in YAML/JSON or a domain-specific language (DSL). The semantics remain the same.
 
