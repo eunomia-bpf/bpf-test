@@ -24,7 +24,7 @@ Key highlights:
 - Let `T` be a set of **Types**, each with associated constraints and properties.
 - Let `C` be a set of **Capabilities**.
 - Let `R` be a set of **Roles**.
-- Let `A` be a set of **Attributes** applicable to roles.
+- Let `A` be a set of **Attributes** applicable to roles, capabilities, and extensions. Can be used to check the compatibility or applicability of some host functions to a certain extension.
 
 We introduce a specification language that can be represented in YAML/JSON or a domain-specific language (DSL). The semantics remain the same.
 
@@ -64,11 +64,20 @@ h = (Name_h, (τ1, τ2, ..., τn) -> τ_out, F_Constraints)
 - `Name_h`: A unique identifier (string).
 - `(τ1, τ2, ..., τn)`: Parameter types.
 - `τ_out`: Return type.
-- `F_Constraints`: A set of logical conditions specifying preconditions, postconditions, and invariants. For example, if `τ_out` is `int` representing a file descriptor, `F_Constraints` might state: "If return < 0, error occurred; else resource is valid."
+- `F_Constraints`: A set of logical conditions specifying preconditions, postconditions, and invariants. For example, if `τ_out` is `int` representing a file descriptor, `F_Constraints` might state: "If return < 0, error occurred; else resource is valid." Or, the constraints can define the relationship between the arguments, such as the first argument is a non-null pointer to a null-terminated string, the second argument is the size of the buffer.
+- `Attributes`: Some host functions may have attributes if they have side effects. For example, create a file will change the disk, or make a network call will change the network state. They have attributes like `may_have_side_effect = true`.
 
 **The verifier** checks:
 - That each call made by the extension to `h` satisfies `F_Constraints`.
 - Argument and return types match the signature and type constraints.
+- For some host functions, the verifier also check and record the resource allocation and deallocation. So we can identify the leak of some resources.
+
+Example in C:
+```c
+int host_open_file(const char *filename, const char *mode);
+void* host_malloc(size_t size);
+void host_free(void* ptr);
+```
 
 ### Extension Exported Functions
 
@@ -78,6 +87,14 @@ e = (Name_e, (τ1, τ2, ..., τm) -> τ_out, E_Constraints)
 ```
 - The host may call these functions.
 - The verifier ensures these also adhere to their constraints.
+
+example in C:
+```c
+UPROBE_ENTRY(extension_entry, (int, int) -> void)
+{
+    ...
+}
+```
 
 ### Capabilities
 
@@ -149,10 +166,10 @@ A **verifier** tool is run at deployment or load time. It checks:
    The verifier analyzes instructions, memory usage patterns (statically approximated), and API calls to ensure they do not exceed the specified attributes.  
    For example, if `max_memory = 1048576`, the verifier ensures that no sequence of valid API calls can cause allocation beyond 1MB of memory. This may rely on conservative static analysis and symbolic constraints.
 
-3. **Capability and Role Composition**:  
+3. **Capability and Role Composition**:
    The verifier checks that all composed capabilities and inherited roles produce a logically consistent set of constraints.  
    - If two parent roles define contradictory constraints for the same API, verification fails.
-   - If a composed capability is formed from `FileRead` and `FileWrite` but has contradictory `read_only` constraints, verification fails or requires explicit resolution.
+   - If a composed capability is formed from `FileRead` and `FileWrite`(They have attributes like `read_only = true` and `read_only = false` respectively) but has contradictory `read_only` constraints, verification fails or requires explicit resolution.
 
 4. **Non-functional Properties** (optional):  
    The verifier can also check additional invariants like no possible null dereferences if `non_null` is specified, or no buffer overflows if length constraints are declared.
