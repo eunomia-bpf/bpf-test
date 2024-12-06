@@ -11,8 +11,8 @@ EIM includes six key concepts:
 - **Types**: Ensure data correctness and safe usage patterns.
 - **Extension-Exported Entries**: Functions exposed by the extension, serving as hooks or callbacks for the host.
 - **Host-Provided Functions (Helpers)**: Host functions callable by the extension, subject to verification and constraints.
-- **Capabilities**: Collections of host-provided functions grouped with constraints, serving as permission bundles.
-- **Roles**: Configurations that determine which extension-exported entries are available, which capabilities apply, and what overarching constraints govern their use.
+- **Capabilities**: A set of host-provided functions grouped with constraints, serving as permission bundles.
+- **Roles**: A set of Extension-Exported Entries plus constraints that govern their usage and indirectly control capabilities
 - **Constraints**: Conditions that ensure resource limits, operational restrictions, and safe execution at every level of the model.
 
 These concepts collectively enable a principle-of-least-privilege approach and formal verification of extension correctness and safety.
@@ -182,6 +182,8 @@ capabilities:
 
 ### 5. Roles
 
+A Role can be understood as a selection of extension-exported entries governed by a set of constraints.
+
 **Definition:**
 
 ```makefile
@@ -190,7 +192,9 @@ Role = (Name_R, Exported_R, Constraints_R)
 
 - `Name_R`: The role's name.
 - `Exported_R ⊆ Extension-Exported Entries`: The set of extension-exported functions (hooks) that this role makes available.
-- `Constraints_R`: Constraints that apply at the role level, including conditions that enable or disable certain capabilities. Unlike capabilities, which directly define a set of helpers, the role references capabilities indirectly by referencing constraints that allow or disallow them.
+- `Constraints_R`: governing not only resource limits and operational policies, but also the implicit availability or prohibition of certain capabilities. These constraints can reference capabilities by name, effectively linking which host-provided functions the extension can use through these capabilities.
+
+A role can be viewed as primarily a set of extension-exported entries (i.e., the functions the extension provides to the host) combined with a collection of constraints that control what the extension can do. Through these constraints, a role can effectively allow or disallow the use of specific capabilities. In other words, while the role does not explicitly contain a list of capabilities, its constraints can mention capabilities by name (e.g., use_capability: FileRead) or forbid them (e.g., !NetAccess). This approach maintains a minimal definition of a role while still enabling fine-grained control over the extension’s allowed helpers and operations.
 
 **Note on Inheritance:**
 
