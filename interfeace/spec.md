@@ -141,7 +141,7 @@ If `fd` is negative, calling `host_read_file` violates `int_positive` constraint
 
 ---
 
-### 4. Capabilities
+### 4.4. Capabilities
 
 **Definition:**
 
@@ -180,7 +180,7 @@ capabilities:
 
 ---
 
-### 5. Roles
+### 4.5. Roles
 
 A Role can be understood as a selection of extension-exported entries governed by a set of constraints.
 
@@ -245,7 +245,7 @@ This demonstrates how `Constraints_R` can define a relationship between capabili
 
 ---
 
-### 6. Constraints
+### 4.6. Constraints
 
 **Definition:** **Constraints** are logical conditions that MUST hold at various levels: type, function, capability, and role. They unify resource limitations, operational policies, type rules, and side-effect restrictions.
 
