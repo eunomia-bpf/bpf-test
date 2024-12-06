@@ -161,7 +161,7 @@ Capability = (Name_c, H_c, Cap_Constraints)
 
 The Cap_Constraints can be from the F_Constraints, and need to verify:
 
-1. if Capability  were missing `read_only`, adding a write helpers means add `read_only`  = true to Capability 
+1. if Capability  were missing `read_only`, adding a write helpers means add `read_only`  = false to Capability 
 2. If Capability  has `read_only` == false, you can add a write helpers to it.
 3. If Capability  has `read_only` == true, you cannot add a write helpers to it.
 
