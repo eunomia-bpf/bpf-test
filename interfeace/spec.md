@@ -259,7 +259,7 @@ This demonstrates how `Constraints_R` can define a relationship between capabili
 - Type-level: `value ≥ 0`
 - Function-level (helper or extension entry): `return ≥ -1`
 - Capability-level: `read_only = true`
-- Role-level: `no_network_access`, `memory_usage ≤ 65536`, `!NetAccess`
+- Role-level: `side_effect`, `memory_usage ≤ 65536`, `!NetAccess`
 
 ---
 
@@ -269,7 +269,7 @@ The verifier checks the extension against the assigned role:
 
 1. **Type Consistency**: Ensures all parameters and returns align with their type constraints.
 2. **Constraint Compliance**: Ensures all constraints at all levels (type, function, capability, role) are satisfied.
-3. **Capability and Role Alignment**: Ensures the extension only uses helpers allowed by capabilities permitted in the role. Any forbidden capabilities (e.g., `!NetAccess`) or actions (`no_network_access`) result in verification failure.
+3. **Capability and Role Alignment**: Ensures the extension only uses helpers allowed by capabilities permitted in the role. Any forbidden capabilities (e.g., `!NetAccess`) or actions (`side_effect`) result in verification failure.
 4. **Error Handling**: If a helper returns a value that must be checked (e.g., a file descriptor that could be negative) and the extension fails to verify it before using it with another helper demanding a positive value, verification fails.
 
 If verification passes, the extension loads safely. Otherwise, it is rejected.
