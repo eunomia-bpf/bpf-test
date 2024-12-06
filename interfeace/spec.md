@@ -1,297 +1,289 @@
-# Extension Model Specification
-
-## Overview
-
-The Extension Permission and Control Model (EPCM) provides a structured, formally verifiable framework to control the behavior of dynamically loaded extensions within a host environment. EPCM defines *roles*, *capabilities*, and *constraints*, and uses *typed interfaces* to ensure that every interaction between extensions and the host environment adheres to specified conditions. EPCM supports inheritance and composition to allow scalable, modular configurations, and is designed for formal verification at load time or during pre-deployment analysis.
-
-Key ideas:
-
-1. **Roles**: Assign permission bundles (capabilities and constraints) to extensions.
-2. **Capabilities**: Define sets of allowed host APIs with well-defined type signatures and associated constraints.
-3. **Constraints**: Impose logical conditions on types, host functions, resources, operations, and roles themselves. Constraints unify what were previously resource/operational "attributes" and logical conditions. All permissible actions and states are governed by constraints.
-4. **Typed Interfaces**: Ensure that every host and extension function adheres to declared type-based constraints, enabling static or symbolic verification.
-5. **Inheritance and Composition**: Support scalable, modular configuration of permissions and constraints by composing capabilities and inheriting roles.
-6. **Formal Verification**: The model and its configurations are designed for verification by a verifier that checks correctness, consistency, and adherence to constraints at load time or pre-deployment.
+# Extension Inferface Model Specification
 
 ---
 
-## Formal Language and Definitions
+## 1. Scope
 
-### Basic Sets and Domains
+This specification defines a model (EIM) for controlling the loading and execution of code extensions within a host environment. The model ensures that such extensions operate safely, within defined constraints, and only invoke allowed host-provided functions under controlled conditions.
 
-- Let `H` be a finite set of **Host APIs** (host-provided functions).
-- Let `E` be a finite set of **Extension Exported Functions** (extension-provided entry points).
-- Let `T` be a set of **Types**, each associated with type-level constraints.
-- Let `C` be a set of **Capabilities**.
-- Let `R` be a set of **Roles**.
-- All conditions, operational policies, resource limits, and logical requirements are expressed as **Constraints**.
+EIM includes six key concepts:
 
-We use a specification language (e.g., YAML/JSON or a DSL) to declare types, capabilities, roles, and constraints. The semantics remain consistent regardless of the chosen format.
+- **Types**: Ensure data correctness and safe usage patterns.
+- **Extension-Exported Entries**: Functions exposed by the extension, serving as hooks or callbacks for the host.
+- **Host-Provided Functions (Helpers)**: Host functions callable by the extension, subject to verification and constraints.
+- **Capabilities**: Collections of host-provided functions grouped with constraints, serving as permission bundles.
+- **Roles**: Configurations that determine which extension-exported entries are available, which capabilities apply, and what overarching constraints govern their use.
+- **Constraints**: Conditions that ensure resource limits, operational restrictions, and safe execution at every level of the model.
 
-### Types and Constraints
+These concepts collectively enable a principle-of-least-privilege approach and formal verification of extension correctness and safety.
 
-**Definition (Type):**  
+## 2. Normative References
+
+The normative language used herein ("MUST", "MUST NOT", "SHOULD", "SHOULD NOT") is as defined in RFC 2119. Unless otherwise noted, all statements are normative requirements.
+
+## 3. Terms and Definitions
+
+- **Extension**: Dynamically loaded code that the host can invoke at defined hook points, analogous to an eBPF program or a plugin.
+- **Host Environment**: The system or runtime that loads the extension and provides host-provided functions (helpers).
+
+## 4. Key Concepts
+
+### 4.1 Types
+
+**Definition:** A **Type** associates a base data type (e.g., `int`, `char*`) with a set of constraints that values of that type must satisfy. Constraints on types (type-level constraints) can include properties such as `non_null`, `null_terminated`, or `value ≥ 0`.
+
+**Definition (Type):**
+
 A type `τ ∈ T` is defined as `(BaseType, Constraints(τ))`, where:
+
 - `BaseType` is a primitive or composite data type (e.g., `int`, `size_t`, `char*`, or a struct).
-- `Constraints(τ)` is a finite set of logical predicates that must hold for any value of that type. Examples:
-  - Non-null pointer: `value ≠ NULL`
-  - Bounded integer: `0 ≤ value ≤ 100`
-  - Null-terminated string: `∀ i, value[i] ≠ '\0'` until a null terminator is found
+- `Constraints(τ)` is a finite set of logical predicates that must hold for any value of that type (e.g., non_null, bounded integer, null_terminated).
 
 **Type System Requirements:**
-- For each `τ ∈ T`, `Constraints(τ)` must be decidable, enabling static or symbolic verification.
-- The verifier checks, for every function call, that arguments and return values meet these type constraints.
 
-**Example Type Definitions:**
+- For each `τ ∈ T`, `Constraints(τ)` must be decidable, enabling static or symbolic verification.
+- The verifier checks that arguments and return values of all functions (hooks and helpers) adhere to their declared type constraints.
+
+**Example:**
+
 ```yaml
 types:
-  - name: "const_char_ptr"
-    base: "char*"
-    constraints: ["non_null", "null_terminated"]
-
   - name: "int_positive"
     base: "int"
     constraints: ["value ≥ 0"]
+  - name: "const_char_ptr"
+    base: "char*"
+    constraints: ["non_null", "null_terminated"]
 ```
 
-### Host APIs
+### 4.2 Extension-Exported Entries
 
-**Definition (Host Function):**  
-Each host function `h ∈ H` is defined as:
-```
-h = (Name_h, (τ1, τ2, ..., τn) -> τ_out, F_Constraints)
-```
-- `Name_h`: A unique identifier (string).
-- `(τ1, τ2, ..., τn)`: Parameter types subject to their type constraints.
-- `τ_out`: Return type subject to its type constraints.
-- `F_Constraints`: Additional logical conditions on usage. For example, if `τ_out` is an integer representing a file descriptor, we might have:
-  - "If return < 0, an error occurred."
-  - "filename must be non_null and null_terminated."
-  - If the host function has side effects, such as creating files or sending network packets, it may define constraints like `may_have_side_effect = true`. This is also a constraint, stating that this function’s invocation changes global state, and thus roles granting access to it must permit side effects.
+An **Extension-Exported Entry** is a function provided by the extension that the host can call. It defines an interface point (hook) at which the host invokes the extension’s logic.
 
-**Verifier Checks for Host APIs:**
-- Argument and return values must satisfy type constraints.
-- Logical constraints (e.g., error conditions, side-effect permissions) must hold for every call.
-- The verifier may track resource allocations (e.g., memory) and ensure no resource leaks or violations of resource-related constraints occur.
+**Definition**:
 
-**Example in C:**
-```c
-int host_open_file(const char *filename, const char *mode);
-void* host_malloc(size_t size);
-void host_free(void* ptr);
-```
-
-For `host_open_file`, constraints might state:
-- `filename.non_null`
-- `mode.non_null`
-- `return ≥ -1`
-- If `return < 0`, an error is signaled.
-
-### Extension Exported Functions
-
-Each extension-provided entry point `e ∈ E` is similarly defined:
-```
+```makefile
 e = (Name_e, (τ1, τ2, ..., τm) -> τ_out, E_Constraints)
 ```
-- The host calls these functions, and they must also adhere to all declared constraints.
-- For example, if an extension entry expects `int_positive`, it must not receive negative values.
 
-**Example:**
+- The host invokes these hooks.
+- Hooks must adhere to all declared constraints (type-level and function-level).
+
+**Requirements:**
+
+- Each extension-exported entry MUST declare its parameter and return types, and any function-level constraints.
+- If the extension-exported entry’s constraints or types are violated at runtime, verification MUST fail and the extension MUST NOT be loaded or executed.
+
+### **Example:**
+
 ```yaml
 extension_exports:
   - name: "process_data"
     signature:
       params:
-        - {type: "int_positive", name: "count"}
-      return_type: "const_char_ptr"
+        - { type: "int_positive", name: "count" }
+      return_type: "int_positive"
     constraints:
-      - "If return ≠ NULL, it must be null_terminated"
+      - "return ≥ 0"
 ```
 
-### Capabilities
+And uprobe/uretprobe hooks
 
-**Definition (Capability):**
+One Extension-Exported Entries(hook) means it has the same type and execution model.
+
+### 4.3 Host-Provided Functions (Helpers)
+
+**Host-Provided Functions (Helpers)** are functions offered by the host environment that the extension may call if allowed by the assigned role and capabilities. These enable the extension to interact with host resources (e.g., reading files, sending packets) under controlled conditions.
+
+**Definition (Host Function):**
+
+Each **Host-Provided** `h ∈ H` is defined as:
+
+```makefile
+h = (Name_h, (τ1, τ2, ..., τn) -> τ_out, F_Constraints)
 ```
-c = (Name_c, H_c, Cap_Constraints)
+
+- `(τ1, τ2, ..., τn)`: Parameter types subject to type constraints.
+- `τ_out`: Return type subject to type constraints.
+- `F_Constraints`: Additional function-level constraints (e.g., write memory, side-effect markers).
+
+**Verifier Checks for Host APIs:**
+
+- Ensures arguments and returns satisfy type constraints.
+- Checks function-level constraints, such as side effects, resource allocation, or error signaling.
+
+**Requirements:**
+
+- Each helper MUST define its signature in terms of types and may have additional function-level constraints.
+- If an extension attempts to call a helper with arguments violating its type-level or function-level constraints, the verifier MUST detect this and prevent loading or execution.
+
+**Example (Host-Provided Function):**
+
+```yaml
+host_functions:
+  - name: "host_read_file"
+    signature:
+      params:
+        - { type: "int_positive", name: "fd" }
+      return_type: "int"
+    function_constraints:
+      - "return ≥ -1"
 ```
-- `Name_c`: Unique capability name.
-- `H_c ⊆ H`: A subset of host APIs that the extension can invoke if granted this capability.
-- `Cap_Constraints`: Additional constraints applying to the use of these APIs as a group. For instance, a capability might state that certain APIs must not be called more than a certain number of times, or that all file descriptors returned must be validated before use.
-
-**Capability Composition:**
-If we have `c1 = (Name_c1, H_c1, CapCon1)` and `c2 = (Name_c2, H_c2, CapCon2)`, a composed capability:
-```
-c_comp = (Name_comp, H_c1 ∪ H_c2, CapCon_comp)
-```
-`CapCon_comp` merges constraints from `CapCon1` and `CapCon2`. If contradictions occur (e.g., one capability requires `read_only = true` and the other requires `read_only = false`), composition fails unless explicitly resolved.
-
-### Constraints (formerly Attributes)
-
-All operational and resource limitations that were previously termed "attributes" are now expressed as constraints. Instead of saying `max_memory: 1048576`, we define a constraint: `memory_usage ≤ 1048576`.
-
-Common constraints include:
-- Resource constraints (e.g., `memory_usage ≤ 1048576`).
-- Operational constraints (e.g., `no_network_access` means no network-related APIs are allowed).
-- Side-effect constraints (e.g., `no_memory_writes` means the extension cannot invoke APIs that modify host memory).
-- Instruction count constraints (`instruction_count ≤ 1000000`).
-
-These constraints are logical conditions integrated into the role or capability definitions. The verifier ensures no violation of these conditions occurs.
 
 **Example:**
+
+```c
+// Constraints: filename.non_null, mode.non_null, return ≥ -1,
+int host_open_file(const char *filename, const char *mode);
+```
+
+If `fd` is negative, calling `host_read_file` violates `int_positive` constraints, causing verification failure.
+
+---
+
+### 4. Capabilities
+
+**Definition:**
+
+```makefile
+Capability = (Name_c, H_c, Cap_Constraints)
+```
+
+- `Name_c`: The capability's name.
+- `H_c`: A subset of Host-Provided Functions included in this capability.
+- `Cap_Constraints`: Constraints applicable to these helpers as a group (e.g., `read_only = true`).
+
+**Requirements:**
+
+- A capability groups a set of helpers and may impose additional constraints on their usage.
+- The extension may only use helpers provided by capabilities assigned to its role.
+- If a capability states conditions like `read_only = true`, then adding a write  helpers to the  Capability violates the constraints, causing verification failure.
+
+The Cap_Constraints can be from the F_Constraints, and need to verify:
+
+1. if Capability  were missing `read_only`, adding a write helpers means add `read_only`  = true to Capability 
+2. If Capability  has `modify_memory` == false, you can add a write helpers to it.
+3. If Capability  has `modify_memory` == true, you cannot add a write  helpers to it.
+
+**Example:**
+
 ```yaml
 capabilities:
   - name: "FileRead"
-    apis: ["host_open_file", "host_read_file"]
+    apis: ["host_read_file"]
     constraints:
-      - "All returned file descriptors must be checked before use"
       - "read_only = true"
 
-roles:
-  - name: "BasicFileRole"
-    capabilities: ["FileRead"]
-    # Instead of attributes, we now write constraints directly:
-    constraints:
-      - "memory_usage ≤ 1048576"
-      - "instruction_count ≤ 1000000"
-      - "no_memory_writes"
-      - "no_network_access"
 ```
 
-### Roles
-
-**Definition (Role):**
-```
-R = (Name_R, Capabilities_R, Constraints_R, Parents_R)
-```
-- `Name_R`: Unique role name.
-- `Capabilities_R ⊆ C`: The capabilities included in this role.
-- `Constraints_R`: A set of constraints (including what were previously resource and operational limits).
-- `Parents_R ⊆ R`: Zero or more parent roles from which this role inherits capabilities and constraints.
-
-**Inheritance Rules:**
-- Capabilities: Inherited from parents plus those defined in the role.
-- Constraints: Inherited and combined. If a parent sets `no_memory_writes` and the child sets `allow_memory_writes`, the child must explicitly resolve this contradiction or the role is invalid.
-- All constraints must remain satisfiable. Contradictory or unsatisfiable constraints cause verification to fail.
-
-**Effective Role Permissions:**
-The verifier merges constraints and capabilities from all ancestors to produce a final, conflict-free set of constraints and allowed APIs.
-
-### Assigning Roles to Extensions
-
-When loading an extension `X`, the host assigns one or more roles. The intersection of all constraints from these roles governs what `X` can do. If any contradictions arise, verification fails and `X` is not loaded.
+`FileRead` capability restricts the extension to read-only file operations.
 
 ---
 
-## Formal Verification Approach
+### 5. Roles
 
-A verifier runs at deployment or load time. It checks:
+**Definition:**
 
-1. **Type Consistency**:  
-   Ensures all arguments and return values satisfy the type-level constraints. For example, if `int_positive` is required and negative values are possible, verification fails.
+```makefile
+Role = (Name_R, Exported_R, Constraints_R)
+```
 
-2. **Constraint Compliance**:  
-   The verifier uses static analysis, symbolic execution, or other logic to ensure that no action taken by the extension violates any constraints. For example:
-   - `memory_usage ≤ 1048576` means it must not allocate beyond 1MB.
-   - `no_memory_writes` means no API calls that write memory are used.
-   - `read_only = true` within a capability means no write-oriented API is called.
+- `Name_R`: The role's name.
+- `Exported_R ⊆ Extension-Exported Entries`: The set of extension-exported functions (hooks) that this role makes available.
+- `Constraints_R`: Constraints that apply at the role level, including conditions that enable or disable certain capabilities. Unlike capabilities, which directly define a set of helpers, the role references capabilities indirectly by referencing constraints that allow or disallow them.
 
-3. **Capability and Role Composition**:  
-   Checks if all composed capabilities and inherited roles produce a logically consistent set of constraints. If contradictions are found, verification fails.
+**Note on Inheritance:**
 
-4. **Non-functional Properties (Optional)**:  
-   The verifier may also check that no null dereferences or buffer overflows occur if specified by constraints (e.g., `non_null` pointers, bounded buffers).
+Optionally, a role may inherit from another role, merging constraints. If inheritance is used, conflicting constraints must be resolved. This feature is not essential to the core model.
 
-**Verification Algorithmic Aspects:**
-- **Type Checking**: Confirm type constraints.
-- **Symbolic Execution**: Explore code paths to ensure no constraint violations.
-- **Policy-Driven Resolution**: If multiple parents define conflicting constraints, a predefined policy might dictate which is chosen or require the child to specify which constraint takes precedence.
+**Requirements:**
 
-If verification succeeds, the extension is considered safe and loaded; if not, loading is aborted.
+- A role primarily determines which extension hooks are available and under what conditions capabilities (and thus helpers) can be used.
+- The role’s constraints MUST be satisfied for the extension to run.
 
----
+**Example of Role-Level Constraints Interacting with Capabilities:**
 
-## Additional Examples
-
-### Example 1: Network-Restricted Role
+Suppose we have two capabilities:
 
 ```yaml
-types:
-  - name: "char_buf"
-    base: "char*"
-    constraints: ["non_null", "null_terminated"]
-
-host_functions:
-  - name: "host_send_packet"
-    signature:
-      params:
-        - {type: "char_buf", name: "data"}
-        - {type: "int", name: "len"}
-      return_type: "int"
-    function_constraints:
-      - "data.non_null"
-      - "len ≥ 0"
-      - "return ≥ -1"
-      - "If return < 0, error occurred."
-      - "side_effects = network"
-
 capabilities:
-  - name: "NetworkSend"
+  - name: "NetAccess"
     apis: ["host_send_packet"]
     constraints:
       - "side_effects = network"
 
-roles:
-  - name: "NoNetworkRole"
+  - name: "FileRead"
+    apis: ["host_read_file"]
     constraints:
-      - "no_network_access"
-
-  - name: "NetRole"
-    capabilities: ["NetworkSend"]
-    # Must allow network if we want to use network-related APIs
-    constraints:
-      - "network_access = true"
-
-# If you assign an extension both "NoNetworkRole" and "NetRole",
-# their constraints conflict (one says no network, the other says network access required).
-# Verification fails unless resolved by explicit policy.
+      - "read_only = true"
 ```
 
-### Example 2: Memory-Bounded Role with Composed Capabilities
+A role might look like:
 
 ```yaml
-host_functions:
-  - name: "host_malloc"
-    signature:
-      params:
-        - {type: "size_t", name: "size"}
-      return_type: "void_ptr"
-    function_constraints:
-      - "size ≥ 0"
-      - "return ≠ NULL if size > 0 else return may be NULL"
-      - "memory_allocated(size)"
-
-  - name: "host_free"
-    signature:
-      params:
-        - {type: "void_ptr", name: "ptr"}
-      return_type: "void"
-    function_constraints:
-      - "ptr.non_null"
-      - "memory_released(ptr)"
-
-capabilities:
-  - name: "MemoryAlloc"
-    apis: ["host_malloc", "host_free"]
-    constraints:
-      - "memory_management_allowed"
-
 roles:
-  - name: "MemLimitedRole"
-    capabilities: ["MemoryAlloc"]
+  - name: "DataProcRole"
+    exported: ["process_data"]
     constraints:
-      - "memory_usage ≤ 524288"  # Limit memory to 512KB
-
-# The verifier ensures that the extension doesn't exceed 512KB total memory usage.
+      - "memory_usage ≤ 65536"
+      - "side_effects = false"
+      - "use_capability: FileRead"
+      - "!NetAccess"   # This forbids the NetAccess capability.
 ```
 
+Here:
 
+- `side_effects = false` is a constraint that forbids any helpers with `side_effects = t`rue.
+- `use_capability: FileRead` states that the `FileRead` capability is allowed, granting access to `host_read_file`.
+- `!NetAccess` explicitly forbids the `NetAccess` capability, so even if some global policy would have allowed it, the role disallows it.
+
+This demonstrates how `Constraints_R` can define a relationship between capabilities and a role. By using `!Capability`, we forbid certain capabilities; by referencing the capability by name (e.g., `use_capability: FileRead`), we allow it.
+
+---
+
+### 6. Constraints
+
+**Definition:** **Constraints** are logical conditions that MUST hold at various levels: type, function, capability, and role. They unify resource limitations, operational policies, type rules, and side-effect restrictions.
+
+**Requirements:**
+
+- Constraints must be decidable and enforceable by the verifier.
+- Any violation of constraints (type-level, function-level, capability-level, or role-level) MUST cause verification to fail.
+
+**Examples of Constraints:**
+
+- Type-level: `value ≥ 0`
+- Function-level (helper or extension entry): `return ≥ -1`
+- Capability-level: `read_only = true`
+- Role-level: `no_network_access`, `memory_usage ≤ 65536`, `!NetAccess`
+
+---
+
+## Verification Process
+
+The verifier checks the extension against the assigned role:
+
+1. **Type Consistency**: Ensures all parameters and returns align with their type constraints.
+2. **Constraint Compliance**: Ensures all constraints at all levels (type, function, capability, role) are satisfied.
+3. **Capability and Role Alignment**: Ensures the extension only uses helpers allowed by capabilities permitted in the role. Any forbidden capabilities (e.g., `!NetAccess`) or actions (`no_network_access`) result in verification failure.
+4. **Error Handling**: If a helper returns a value that must be checked (e.g., a file descriptor that could be negative) and the extension fails to verify it before using it with another helper demanding a positive value, verification fails.
+
+If verification passes, the extension loads safely. Otherwise, it is rejected.
+
+---
+
+## OOP Analogy (Non-Normative)
+
+While EPCM is not object-oriented, one may draw a conceptual analogy:
+
+- **Roles**: Similar to classes, defining a blueprint of what extension entries are exposed and what capabilities and constraints apply.
+- **Extensions**: Similar to objects (instances of roles). Assigning a role to an codebase is like creating an object from a class. The extension code (like object methods) to be loaded must adhere to constraints (like class invariants).
+- **Types, Constraints, and Capabilities**: Analogous to type checks, resource policies, and method sets in a class.
+
+This analogy is informal and only intended to help conceptual understanding.
+
+---
+
+## Conclusion
+
+This specification provides a formal framework where **Types**, **Extension-Exported Entries**, **Host-Provided Functions (Helpers)**, **Capabilities**, **Roles**, and **Constraints** work together to ensure safe, controlled execution of dynamically loaded extensions. The model emphasizes minimal definitions, strong verification steps, and least-privilege design.
