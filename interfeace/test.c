@@ -64,6 +64,17 @@ BPFTIME_ROLE_SET_ATTRIBUTE(AdminRole, may_have_side_effect, 1)
 BPFTIME_EXTENSION_ENTRY_FOR_ROLE(AdminRole, process_string, const char* input, int mode)
 BPFTIME_EXTENSION_ENTRY_FOR_ROLE(AdminRole, analyze_data, const char* data, int length)
 
+int original_process_data(const char* input, int mode) {
+    // user notation for using extension to replace original function
+    int result = BPFTIME_EXTENSION_ENTRY_INVOKE(AdminRole, process_string, "hello", 42);
+    if (result > 0) {
+        return result;
+    }
+    // original logic
+    // mock it
+    return strlen(input);
+}
+
 //------------------------------------
 // Demo usage
 //------------------------------------
