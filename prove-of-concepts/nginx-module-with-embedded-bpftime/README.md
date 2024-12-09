@@ -22,8 +22,7 @@ A simple nginx module that could run ebpf program through bpftime when handling 
 - Use `LD_LIBRARY_PATH=./simple-wasmtime-aux/target/release/ nginx -p . -c nginx.conf` to run the nginx server
 
 ## How to test with lua module
-- Modify `nginx.conf`, comment out lines with `[bpftime module]`, and uncomment lines with `[lua module]`
-
+- Similar to wasm module, but uncomment line 8 in `module/config` and run `cargo build --release` in `simple-luajit-wrapper`
 
 ## With docker contaner
 

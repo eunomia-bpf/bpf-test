@@ -41,9 +41,12 @@ extern "C" fn module_run_at_handler(mem: *const u8, mem_size: u64, ret: *mut u64
         .get_typed_func::<(i32,), (i32,)>(&mut sp.store, "test_url")
         .unwrap();
     let memory = sp.instance.get_memory(&mut sp.store, "memory").unwrap();
-    memory.write(&mut sp.store, 8, unsafe {
-        std::slice::from_raw_parts(mem, mem_size as usize)
-    });
+    // Dump the memory
+    let copied_mem = unsafe { std::slice::from_raw_parts(mem, mem_size as usize) }
+        .iter()
+        .map(|x| *x)
+        .collect::<Vec<u8>>();
+    memory.write(&mut sp.store, 8, &copied_mem);
     let (ret_f,) = check_func.call(&mut sp.store, (8,)).unwrap();
     *(unsafe { &mut *ret }) = ret_f as u64;
     0

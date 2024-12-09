@@ -3,6 +3,7 @@ ngx_addon_name=ngx_http_bpftime_module
 ngx_module_type=HTTP
 ngx_module_name=ngx_http_bpftime_module
 ngx_module_srcs="$ngx_addon_dir/ngx_http_bpftime_module.c"
-ngx_module_libs="$ngx_addon_dir/../build/libnginx-module-aux.so -lstdc++"
-# ngx_module_libs="$ngx_addon_dir/../simple-wasmtime-aux/target/release/libsimple_wasmtime_aux.so -lstdc++"
+ngx_module_libs="$ngx_addon_dir/../build/libnginx-module-aux.so -lstdc++" # For bpftime
+# ngx_module_libs="$ngx_addon_dir/../simple-wasmtime-aux/target/release/libsimple_wasmtime_aux.so -lstdc++" # For wasm module
+# ngx_module_libs="$ngx_addon_dir/../simple-luajit-wrapper/target/release/libsimple_luajit_wrapper.so -lstdc++" # For lua module
 . auto/module
