@@ -7,6 +7,8 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <fstream>
+#include <ostream>
 #include <variant>
 using namespace bpftime;
 
@@ -47,7 +49,14 @@ extern "C" int module_init() {
 }
 
 extern "C" int module_run_at_handler(void *mem, uint64_t mem_size,
-                                     uint64_t *ret) {
+                                     uint64_t *ret, uint64_t uri_offset,
+                                     void (*uri_extract)(const void *, char *,
+                                                         size_t, size_t *)) {
+  auto str = (const void *)((uintptr_t)mem + uri_offset);
+  char buf[512];
   assert(prog != nullptr);
-  return prog->bpftime_prog_exec(mem, mem_size, ret);
+
+  size_t len;
+  uri_extract(str, buf, sizeof(buf), &len);
+  return prog->bpftime_prog_exec(buf, len + 1, ret);
 }

@@ -1,5 +1,6 @@
 use std::{
-    ffi::c_int,
+    ffi::{c_char, c_int},
+    os::raw::c_void,
     sync::atomic::{AtomicUsize, Ordering},
 };
 use wasmtime::{Engine, Instance, Module, Store};
@@ -34,8 +35,15 @@ extern "C" fn module_init() -> c_int {
 
 #[allow(unused)]
 #[no_mangle]
-extern "C" fn module_run_at_handler(mem: *const u8, mem_size: u64, ret: *mut u64) -> c_int {
+extern "C" fn module_run_at_handler(
+    mem: *const u8,
+    mem_size: u64,
+    ret: *mut u64,
+    uri_offset: u64,
+    uri_extract: unsafe extern "C" fn(*const c_void, *mut c_char, usize, *mut usize),
+) -> c_int {
     let mut sp = unsafe { &mut *(WASM_VM.load(Ordering::Acquire) as *mut StatePack) };
+
     let check_func = sp
         .instance
         .get_typed_func::<(i32,), (i32,)>(&mut sp.store, "test_url")
@@ -46,7 +54,19 @@ extern "C" fn module_run_at_handler(mem: *const u8, mem_size: u64, ret: *mut u64
         .iter()
         .map(|x| *x)
         .collect::<Vec<u8>>();
-    memory.write(&mut sp.store, 8, &copied_mem);
+    let mut str_buf = vec![0u8; 512];
+    let mut out_len: usize = 0;
+    unsafe {
+        uri_extract(
+            mem.add(uri_offset as usize) as *const c_void,
+            str_buf.as_mut_ptr() as *mut i8,
+            str_buf.len(),
+            &mut out_len as *mut usize,
+        )
+    };
+
+    memory.write(&mut sp.store, 8, &str_buf);
+
     let (ret_f,) = check_func.call(&mut sp.store, (8,)).unwrap();
     *(unsafe { &mut *ret }) = ret_f as u64;
     0

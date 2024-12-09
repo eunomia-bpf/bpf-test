@@ -1,9 +1,11 @@
 #include "ngx_conf_file.h"
 #include "ngx_log.h"
 #include "ngx_string.h"
+#include <stdio.h>
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_http.h>
+#include <stddef.h>
 
 typedef struct {
   ngx_flag_t enable;
@@ -52,28 +54,34 @@ ngx_module_t ngx_http_bpftime_module = {
     NULL,                         /* exit master */
     NGX_MODULE_V1_PADDING};
 
+int module_run_at_handler(void *mem, uint64_t mem_size, uint64_t *ret,
+                          uint64_t uri_offset,
+                          void (*uri_extract)(const void *, char *, size_t,
+                                              size_t *));
+
+static void extract_uri(const void *value, char *out_buf, size_t buf_size,
+                        size_t *out_len) {
+  ngx_str_t *str = (ngx_str_t *)value;
+  snprintf(out_buf, buf_size, "%*s", (int)str->len, str->data);
+  int len = strlen(out_buf);
+  for (int i = len - 1; i >= 0; i--)
+    if (out_buf[i] == ' ') {
+      out_buf[i] = '\0';
+      break;
+    }
+  len = strlen(out_buf);
+  *out_len = len;
+}
+
 static ngx_int_t ngx_http_bpftime_handler(ngx_http_request_t *r) {
   ngx_http_bpftime_loc_conf_t *ulcf;
-
-  ngx_log_error(NGX_LOG_DEBUG, r->connection->log, 0, "http ua access handler");
-
+  ngx_log_error(NGX_LOG_DEBUG, r->connection->log, 0,
+                "http ua access handler");
   ulcf = ngx_http_get_module_loc_conf(r, ngx_http_bpftime_module);
   if (ulcf->enable) {
-    char buf[512];
-    snprintf(buf, sizeof(buf), "%*s", (int)r->uri.len, r->uri.data);
-
-    int module_run_at_handler(void *mem, uint64_t mem_size, uint64_t *ret);
-    int len = strlen(buf);
-    for (int i = len - 1; i >= 0; i--)
-      if (buf[i] == ' ') {
-        buf[i] = '\0';
-        break;
-      }
-    len = strlen(buf);
-    ngx_log_error(NGX_LOG_DEBUG, r->connection->log, 0, "Accessed uri: %s",
-                  buf);
     uint64_t ret = 0;
-    int err = module_run_at_handler(buf, len + 1, &ret);
+    int err = module_run_at_handler(
+        r, sizeof(*r), &ret, offsetof(ngx_http_request_t, uri), &extract_uri);
 
     if (err < 0) {
       ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
