@@ -106,7 +106,7 @@ int __always_inline try_match_url(const char *str) {
   return 0;
 }
 
-SEC("nginx/http_url;")
+SEC("uprobe/http_url")
 int nginx(const char *str) { return !try_match_url(str); }
 
 char LICENSE[] SEC("license") = "GPL";

@@ -50,4 +50,4 @@ add_custom_command(
     COMMENT "Copy nginx module to ${CMAKE_SOURCE_DIR}/module-output/"
 )
 
-add_dependencies(nginx runtime vm-bpf)
+add_dependencies(nginx runtime bpftime_vm)
