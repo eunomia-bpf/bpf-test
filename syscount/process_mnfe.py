@@ -134,6 +134,13 @@ plt.xlabel("Requests per Second (RPS)", fontsize=12, labelpad=10)
 plt.ylabel("Scenario", fontsize=12, labelpad=10)
 plt.xticks(fontsize=10)
 
+# 设置x轴的刻度标签
+ax.set_xticks([r + off[r] for r in range(len(groups))])
+ax.set_xticklabels(groups, fontsize=15)
+# plt.title('Average Requests per Second by Scenario')
+plt.xlabel("Scenario", fontsize=20, labelpad=-1)
+plt.ylabel("Requests per Second (RPS)", fontsize=20, labelpad=-7)
+plt.savefig("syscount-req.pdf")
 plt.tight_layout()
 plt.savefig("syscount-req-horizontal.pdf")
 plt.show()
