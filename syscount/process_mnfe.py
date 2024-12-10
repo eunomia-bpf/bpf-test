@@ -89,16 +89,18 @@ legends = {
     "#FA7F6F": "Targeted",
 }
 
-
 off = [0.7, 0, -0.7]
 bar_width = 0.10
-# 绘制柱状图
+
+# 绘制水平柱状图
 fig, ax = plt.subplots()
-fig.set_figwidth(fig.get_figwidth() * 1.2)
-fig.set_figheight(fig.get_figheight() * 1.1)
+fig.set_figwidth(fig.get_figwidth() * 1.4)
+fig.set_figheight(fig.get_figheight() / 1.3 * 0.80) 
+
 for i, (group, values) in enumerate(group_data.items()):
-    # 计算每个组的x位置
-    x_pos = [i + bar_width * j + off[i] for j in range(len(values))]
+    # 计算每个组在y轴上的位置
+    # 原先x轴分布改为y轴分布
+    y_pos = [i + bar_width * j + off[i] for j in range(len(values))]
 
     # 获取每个柱子的颜色
     group_colors = (
@@ -106,39 +108,32 @@ for i, (group, values) in enumerate(group_data.items()):
         if isinstance(colors[group], list)
         else [colors[group]] * len(values)
     )
-    # 绘制每个组的柱子
-    for x, val, col in zip(x_pos, values, group_colors):
-        b = ax.bar(
-            x,
+    # 使用barh绘制横向条形图
+    for y, val, col in zip(y_pos, values, group_colors):
+        b = ax.barh(
+            y,
             val,
             color=col,
-            width=bar_width,
+            height=bar_width,
             label=legends[col]
             if legends[col] not in ax.get_legend_handles_labels()[1]
             else "",
         )
-        ax.bar_label(b, [val], fontsize=12)
+        ax.bar_label(b, [val], fontsize=9, padding=5)
+        ax.set_xlim(0, 22000)
 
 # 设置图例
-ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.12), fontsize=15, ncol=3)
-plt.yticks(fontsize=15)
+ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.2), fontsize=10, ncol=3)
 
-# 设置x轴的刻度标签
-ax.set_xticks([r + off[r] for r in range(len(groups))])
-ax.set_xticklabels(groups, fontsize=15)
-# plt.title('Average Requests per Second by Scenario')
-plt.xlabel("Scenario", fontsize=20, labelpad=-1)
-plt.ylabel("Requests per Second (RPS)", fontsize=20, labelpad=-7)
-plt.savefig("syscount-req.png")
+# 原先的x轴为分组名，现在y轴为分组名
+ax.set_yticks([r + off[r] for r in range(len(groups))])
+ax.set_yticklabels(groups, fontsize=10)
+
+# x轴显示请求数，y轴显示场景
+plt.xlabel("Requests per Second (RPS)", fontsize=12, labelpad=10)
+plt.ylabel("Scenario", fontsize=12, labelpad=10)
+plt.xticks(fontsize=10)
+
 plt.tight_layout()
-# # Plotting the bar graph for Transfer/sec
-# plt.figure(figsize=(10, 8))
-# plt.bar(x + 0.2, transfer_sec_means, 0.4, label='Transfer/sec', color=colors)
-# plt.xlabel('Scenario', fontsize=16)
-# plt.ylabel('Transfer per Second (MB/sec)', fontsize=16)
-# plt.xticks(x, scenarios, fontsize=14)
-# # plt.legend()
-# plt.title('Average Transfer per Second by Scenario')
-# plt.tight_layout()
-# plt.savefig('average_transfer_by_scenario.png')
-# plt.show()
+plt.savefig("syscount-req-horizontal.pdf")
+plt.show()
