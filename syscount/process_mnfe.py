@@ -3,7 +3,6 @@ import statistics
 import matplotlib.pyplot as plt
 import numpy as np
 
-
 def get_stats_and_plot(log_file_path, label, color):
     # Regular expressions to extract the numerical values for requests per second and transfer per second
     req_sec_pattern = re.compile(r"Requests/sec:\s+(\d+\.\d+)")
@@ -92,55 +91,57 @@ legends = {
 off = [0.7, 0, -0.7]
 bar_width = 0.10
 
-# 绘制水平柱状图
+# Create the figure and axes
 fig, ax = plt.subplots()
+
+# Increase figure size
 fig.set_figwidth(fig.get_figwidth() * 1.4)
-fig.set_figheight(fig.get_figheight() / 1.3 * 0.80) 
+fig.set_figheight(fig.get_figheight() / 1.3 * 0.80)
 
 for i, (group, values) in enumerate(group_data.items()):
-    # 计算每个组在y轴上的位置
-    # 原先x轴分布改为y轴分布
+    # Calculate the y positions for each bar
     y_pos = [i + bar_width * j + off[i] for j in range(len(values))]
 
-    # 获取每个柱子的颜色
+    # Get the colors for the bars
     group_colors = (
         colors[group]
         if isinstance(colors[group], list)
         else [colors[group]] * len(values)
     )
-    # 使用barh绘制横向条形图
+    # Plot horizontal bars
     for y, val, col in zip(y_pos, values, group_colors):
         b = ax.barh(
             y,
             val,
             color=col,
             height=bar_width,
-            label=legends[col]
-            if legends[col] not in ax.get_legend_handles_labels()[1]
-            else "",
+            label=legends[col] if legends[col] not in ax.get_legend_handles_labels()[1] else "",
         )
-        ax.bar_label(b, [val], fontsize=9, padding=5)
+        # Increase font size for bar labels
+        ax.bar_label(b, [val], fontsize=12, padding=5)
+        # Set x-axis limit if needed
         ax.set_xlim(0, 22000)
 
-# 设置图例
-ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.2), fontsize=10, ncol=3)
+# Set legend with larger font size
+ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.2), fontsize=14, ncol=3)
 
-# 原先的x轴为分组名，现在y轴为分组名
+# Set y-ticks and labels
 ax.set_yticks([r + off[r] for r in range(len(groups))])
-ax.set_yticklabels(groups, fontsize=10)
+ax.set_yticklabels(groups, fontsize=15)
 
-# x轴显示请求数，y轴显示场景
-plt.xlabel("Requests per Second (RPS)", fontsize=12, labelpad=10)
-plt.ylabel("Scenario", fontsize=12, labelpad=10)
-plt.xticks(fontsize=10)
+# Increase axis label and tick sizes
+plt.xticks(fontsize=15)
 
-# 设置x轴的刻度标签
-ax.set_xticks([r + off[r] for r in range(len(groups))])
-ax.set_xticklabels(groups, fontsize=15)
-# plt.title('Average Requests per Second by Scenario')
-plt.xlabel("Scenario", fontsize=20, labelpad=-1)
-plt.ylabel("Requests per Second (RPS)", fontsize=20, labelpad=-7)
-plt.savefig("syscount-req.pdf")
+# Update axis labels with larger font size
+plt.xlabel("Scenario", fontsize=20, labelpad=10)
+plt.ylabel("Requests per Second (RPS)", fontsize=20, labelpad=10)
+
 plt.tight_layout()
+
+# Save the figure
+plt.savefig("syscount-req.pdf")
+plt.savefig("syscount-req.png")
+
 plt.savefig("syscount-req-horizontal.pdf")
+
 plt.show()
