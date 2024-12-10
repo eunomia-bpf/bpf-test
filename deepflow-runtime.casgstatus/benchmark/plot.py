@@ -48,7 +48,6 @@ def calculate_averages(data):
 https_averages = calculate_averages(https_structure)
 http_averages = calculate_averages(http_structure)
 
-
 def calculate_performance_drop(averages, baseline_key):
     performance_drop = {}
     baseline = averages[baseline_key]
@@ -83,7 +82,6 @@ def calculate_performance_drop(averages, baseline_key):
 
     return performance_drop
 
-
 # Calculating performance drop for HTTPS and HTTP
 https_performance_drop = calculate_performance_drop(https_averages, "no-probe")
 http_performance_drop = calculate_performance_drop(http_averages, "no-probe")
@@ -92,22 +90,24 @@ http_performance_drop = calculate_performance_drop(http_averages, "no-probe")
 def plot_request_performance_drop(performance_drop, title, filename):
     sizes = sorted(list(performance_drop[next(iter(performance_drop))].keys()))
     # Assuming 'probe' and 'uprobes' are the only keys besides 'no-probe'
-    legend_labels = ['Deepflow', 'Deepflow-Ubi']
+    legend_labels = ['Deepflow', 'Deepflow-kernel', 'Deepflow-UserBPF']
+    linewidth = 3  # Thicker line width
 
     # Plotting Request Drops
     plt.figure(figsize=(6, 6))
     i = 0  # Index for legend labels
     for sub_key in performance_drop:
-        if i != 1:  # Exclude 'no-probe' from the plot
-            if i!=2:
-                plt.plot(sizes, [performance_drop[sub_key][size]["request_drop"] for size in sizes],
-                        label=legend_labels[0])
-            else:
-                plt.plot(sizes, [performance_drop[sub_key][size]["request_drop"] for size in sizes],
-                        label=legend_labels[1])
-        i += 1  # Move to the next legend label
+        request_drops = [performance_drop[sub_key][size]["request_drop"] for size in sizes]
 
-    
+        # Assign labels based on index
+        if i < len(legend_labels):
+            label = legend_labels[i]
+        else:
+            label = f'Series {i}'  # Fallback if there are more keys than expected
+
+        plt.plot(sizes, request_drops, label=label, linewidth=linewidth)
+        i += 1
+
     plt.xlabel("Size", fontsize=22)
     plt.ylabel("Request Drop (%)", fontsize=22)
     plt.legend(fontsize=22)
