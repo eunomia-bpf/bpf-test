@@ -141,7 +141,7 @@ for i, (group, values) in enumerate(group_data.items()):
                 b.set_label(legends[col])
 
 # Set legend with larger font size
-ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.2), fontsize=14, ncol=3)
+ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.2), fontsize=12, ncol=3)
 
 # Set x-ticks and labels
 ax.set_xticks(x)
@@ -153,7 +153,7 @@ plt.yticks(fontsize=15)
 
 # Update axis labels with larger font size
 # plt.xlabel("Scenario", fontsize=20, labelpad=10)
-plt.ylabel("Requests per Second (RPS)", fontsize=20, labelpad=10)
+plt.ylabel("Requests per Second (RPS)", fontsize=14, labelpad=10)
 
 # Set a suitable y-axis limit if desired
 ax.set_ylim(0, 22000)
