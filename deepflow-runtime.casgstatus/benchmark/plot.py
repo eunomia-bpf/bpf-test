@@ -100,12 +100,12 @@ def plot_request_performance_drop(performance_drop, title, filename):
         request_drops = [performance_drop[sub_key][size]["request_drop"] for size in sizes]
 
         # Assign labels based on index
-        if i < len(legend_labels):
+        if i < len(legend_labels) and i != 1 :
             label = legend_labels[i]
-        else:
-            label = f'Series {i}'  # Fallback if there are more keys than expected
+        # else:
+            # label = f'Series {i}'  # Fallback if there are more keys than expected
 
-        plt.plot(sizes, request_drops, label=label, linewidth=linewidth)
+            plt.plot(sizes, request_drops, label=label, linewidth=linewidth)
         i += 1
 
     plt.xlabel("Size", fontsize=22)
